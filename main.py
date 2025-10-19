@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from datetime import datetime
-from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
 from io import StringIO
 import sqlite3
 import csv
 
 app = FastAPI()
 
+# --- DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect("logs.db")
     cursor = conn.cursor()
@@ -28,6 +28,8 @@ def init_db():
 
 init_db()
 
+
+# --- DATA MODEL ---
 class ConversationLog(BaseModel):
     userId: str
     timestamp: datetime
@@ -36,6 +38,8 @@ class ConversationLog(BaseModel):
     gptResponse: str
     gptAudioUrl: str | None = None
 
+
+# --- POST /logs ---
 @app.post("/logs")
 async def log_conversation(log: ConversationLog):
     try:
@@ -54,7 +58,13 @@ async def log_conversation(log: ConversationLog):
             log.gptAudioUrl
         ))
         conn.commit()
+        conn.close()
+        return {"message": "Conversation log stored successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+# --- GET /logs ---
 @app.get("/logs")
 def get_all_logs():
     try:
@@ -77,15 +87,11 @@ def get_all_logs():
             })
 
         return JSONResponse(content=logs)
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-        conn.close()
-        return {"message": "Conversation log stored successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
+# --- GET /logs.csv ---
 @app.get("/logs.csv")
 def download_logs_csv():
     try:
@@ -100,12 +106,11 @@ def download_logs_csv():
 
         # Write CSV header
         writer.writerow([
-            "id", "userId", "timestamp", 
-            "userTranscript", "userAudioUrl", 
+            "id", "userId", "timestamp",
+            "userTranscript", "userAudioUrl",
             "gptResponse", "gptAudioUrl"
         ])
 
-        # Write data rows
         for row in rows:
             writer.writerow(row)
 
