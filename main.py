@@ -50,7 +50,72 @@ async def log_conversation(log: ConversationLog):
             log.gptAudioUrl
         ))
         conn.commit()
+
+from fastapi.responses import JSONResponse
+
+@app.get("/logs")
+def get_all_logs():
+    try:
+        conn = sqlite3.connect("logs.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM conversation_logs")
+        rows = cursor.fetchall()
+        conn.close()
+
+        logs = []
+        for row in rows:
+            logs.append({
+                "id": row[0],
+                "userId": row[1],
+                "timestamp": row[2],
+                "userTranscript": row[3],
+                "userAudioUrl": row[4],
+                "gptResponse": row[5],
+                "gptAudioUrl": row[6],
+            })
+
+        return JSONResponse(content=logs)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
         conn.close()
         return {"message": "Conversation log stored successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+import csv
+from fastapi.responses import StreamingResponse
+from io import StringIO
+
+@app.get("/logs.csv")
+def download_logs_csv():
+    try:
+        conn = sqlite3.connect("logs.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM conversation_logs")
+        rows = cursor.fetchall()
+        conn.close()
+
+        output = StringIO()
+        writer = csv.writer(output)
+
+        # Write CSV header
+        writer.writerow([
+            "id", "userId", "timestamp", 
+            "userTranscript", "userAudioUrl", 
+            "gptResponse", "gptAudioUrl"
+        ])
+
+        # Write data rows
+        for row in rows:
+            writer.writerow(row)
+
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=conversation_logs.csv"}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
