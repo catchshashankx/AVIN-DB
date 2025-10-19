@@ -1,7 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
+from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
+from io import StringIO
 import sqlite3
+import csv
 
 app = FastAPI()
 
@@ -51,8 +55,6 @@ async def log_conversation(log: ConversationLog):
         ))
         conn.commit()
 
-from fastapi.responses import JSONResponse
-
 @app.get("/logs")
 def get_all_logs():
     try:
@@ -83,10 +85,6 @@ def get_all_logs():
         return {"message": "Conversation log stored successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-import csv
-from fastapi.responses import StreamingResponse
-from io import StringIO
 
 @app.get("/logs.csv")
 def download_logs_csv():
